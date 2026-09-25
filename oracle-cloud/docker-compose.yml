@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # Caddy Reverse Proxy with Automatic Let's Encrypt SSL/TLS
+  caddy:
+    image: caddy:2.7-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - omnicall-server
+      - livekit
+
+  # OmniCall Express Web & Signaling Backend
+  omnicall-server:
+    build:
+      context: ..
+      dockerfile: oracle-cloud/Dockerfile.server
+    restart: unless-stopped
+    environment:
+      - PORT=3000
+      - LIVEKIT_URL=wss://${DOMAIN:-localhost}/rtc
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY:-omnicall_api_key_oracle}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET:-omnicall_secret_change_me_12345}
+      - TURN_URL=turn:${DOMAIN:-localhost}:3478
+      - TURN_USERNAME=${TURN_USERNAME:-omnicall}
+      - TURN_CREDENTIAL=${TURN_CREDENTIAL:-turnsecret123}
+    expose:
+      - "3000"
+
+  # LiveKit Enterprise SFU Media Server
+  livekit:
+    image: livekit/livekit-server:v1.13.7
+    restart: unless-stopped
+    command: --config /etc/livekit.yaml
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "50000-50100:50000-50100/udp"
+    environment:
+      - LIVEKIT_KEYS=${LIVEKIT_API_KEY:-omnicall_api_key_oracle}: ${LIVEKIT_API_SECRET:-omnicall_secret_change_me_12345}
+
+  # Coturn STUN/TURN Media Relay Server (100% NAT/Firewall Bypass)
+  coturn:
+    image: coturn/coturn:latest
+    restart: unless-stopped
+    network_mode: "host"
+    volumes:
+      - ./turnserver.conf:/etc/coturn/turnserver.conf:ro
+
+volumes:
+  caddy_data:
+  caddy_config:

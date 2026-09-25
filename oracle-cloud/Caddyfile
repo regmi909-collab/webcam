@@ -1,0 +1,27 @@
+{
+    email admin@example.com
+}
+
+# Replace :80/:443 or your-domain.com
+:80, :443 {
+    # LiveKit WebRTC SFU signaling and WebSocket
+    handle /rtc* {
+        uri strip_prefix /rtc
+        reverse_proxy livekit:7880 {
+            header_up Host {host}
+            header_up X-Real-IP {remote}
+            header_up X-Forwarded-For {remote}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # OmniCall Signaling WebSocket
+    handle /signaling* {
+        reverse_proxy omnicall-server:3000
+    }
+
+    # OmniCall Web Client & Token API
+    handle {
+        reverse_proxy omnicall-server:3000
+    }
+}

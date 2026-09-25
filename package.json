@@ -1,0 +1,57 @@
+{
+  "name": "omnicall",
+  "version": "1.0.0",
+  "description": "Unlimited Video & Audio Calling Software for Windows with Enterprise WebRTC SFU",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "node scripts/dev.js",
+    "dev": "node scripts/dev.js",
+    "server": "node server/server.js",
+    "app": "electron .",
+    "livekit:local": ".\\bin\\livekit-server.exe --dev",
+    "build:win": "electron-builder --win"
+  },
+  "build": {
+    "appId": "com.omnicall.app",
+    "productName": "OmniCall",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "files": [
+      "src/**/*",
+      "server/**/*",
+      "package.json"
+    ]
+  },
+  "keywords": [
+    "webrtc",
+    "video-call",
+    "audio-call",
+    "sfu",
+    "livekit",
+    "electron",
+    "windows",
+    "conference"
+  ],
+  "author": "OmniCall",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "livekit-client": "^2.22.3",
+    "livekit-server-sdk": "^2.19.1",
+    "uuid": "^14.0.2",
+    "ws": "^8.21.3"
+  }
+}
