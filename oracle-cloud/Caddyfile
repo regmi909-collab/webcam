@@ -1,8 +1,8 @@
 {
-    email admin@example.com
+    auto_https off
 }
 
-:80, :443 {
+:80 {
     # LiveKit WebRTC SFU signaling and WebSocket
     handle /rtc* {
         uri strip_prefix /rtc
