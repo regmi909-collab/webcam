@@ -123,7 +123,17 @@
     statResolution: document.getElementById('stat-resolution'),
     statCodec: document.getElementById('stat-codec'),
 
-    toastHud: document.getElementById('toast-hud')
+    toastHud: document.getElementById('toast-hud'),
+
+    // Secure Context / HTTPS Notification
+    secureContextBanner: document.getElementById('secure-context-banner'),
+    btnSwitchHttps: document.getElementById('btn-switch-https'),
+    btnShowChromeFlagHelp: document.getElementById('btn-show-chrome-flag-help'),
+    btnCloseBanner: document.getElementById('btn-close-banner'),
+    modalChromeFlag: document.getElementById('modal-chrome-flag'),
+    closeChromeFlagModal: document.getElementById('close-chrome-flag-modal'),
+    btnModalSwitchHttps: document.getElementById('btn-modal-switch-https'),
+    flagGuideOrigin: document.getElementById('flag-guide-origin')
   };
 
   // --- Initializer ---
@@ -131,6 +141,7 @@
     setupElectronWindow();
     setupEngineSelection();
     setupLobbyDefaults();
+    checkSecureContext();
     await fetchServerConfig();
     await initMediaPreview();
     await enumerateDevices();
@@ -227,8 +238,72 @@
     });
   }
 
+  // --- Secure Context & Browser Media Permissions ---
+  function getHttpsUrl() {
+    const host = window.location.hostname;
+    const path = window.location.pathname || '/';
+    const query = window.location.search || (state.roomName ? `?room=${encodeURIComponent(state.roomName)}` : '');
+    // If accessing via raw IPv4, route through sslip.io for real Let's Encrypt SSL
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(host)) {
+      return `https://${host}.sslip.io${path}${query}`;
+    }
+    return `https://${window.location.host}${path}${query}`;
+  }
+
+  function checkSecureContext() {
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const isElectron = window.electronAPI && window.electronAPI.isElectron;
+    const isSecure = window.isSecureContext || isLocal || isElectron;
+
+    if (!isSecure && el.secureContextBanner) {
+      el.secureContextBanner.style.display = 'flex';
+      const httpsUrl = getHttpsUrl();
+      if (el.btnSwitchHttps) el.btnSwitchHttps.href = httpsUrl;
+      if (el.btnModalSwitchHttps) el.btnModalSwitchHttps.href = httpsUrl;
+      if (el.flagGuideOrigin) el.flagGuideOrigin.textContent = window.location.origin;
+    }
+  }
+
+  function updateCameraState(active) {
+    const hasTrack = active && state.localStream && state.localStream.getVideoTracks().length > 0 && state.localStream.getVideoTracks()[0].enabled;
+    state.isVideoOff = !hasTrack;
+
+    if (hasTrack) {
+      if (el.localAvatar) el.localAvatar.style.display = 'none';
+      if (el.localVideo) el.localVideo.style.display = 'block';
+      if (el.previewCameraOff) el.previewCameraOff.style.display = 'none';
+      if (el.previewVideo) el.previewVideo.style.display = 'block';
+      if (el.ctrlCam) el.ctrlCam.classList.remove('off');
+      if (el.lobbyBtnCamera) el.lobbyBtnCamera.classList.remove('off');
+    } else {
+      if (el.localAvatar) el.localAvatar.style.display = 'flex';
+      if (el.localVideo) el.localVideo.style.display = 'none';
+      if (el.previewCameraOff) el.previewCameraOff.style.display = 'flex';
+      if (el.previewVideo) el.previewVideo.style.display = 'none';
+      if (el.ctrlCam) el.ctrlCam.classList.add('off');
+      if (el.lobbyBtnCamera) el.lobbyBtnCamera.classList.add('off');
+    }
+  }
+
   // --- Media & Preview ---
   async function initMediaPreview(videoDeviceId = null, audioDeviceId = null) {
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const isElectron = window.electronAPI && window.electronAPI.isElectron;
+    const isSecure = window.isSecureContext || isLocal || isElectron;
+
+    if (!isSecure) {
+      console.warn('[OmniCall] Insecure HTTP origin detected. Browser strictly requires HTTPS for camera/mic access.');
+      updateCameraState(false);
+      checkSecureContext();
+      return;
+    }
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      console.warn('[OmniCall] navigator.mediaDevices not available.');
+      updateCameraState(false);
+      return;
+    }
+
     try {
       if (state.localStream) {
         state.localStream.getTracks().forEach(t => t.stop());
@@ -243,10 +318,12 @@
       el.previewVideo.srcObject = state.localStream;
       el.localVideo.srcObject = state.localStream;
 
+      updateCameraState(true);
       startMicVisualizer(state.localStream);
     } catch (err) {
       console.warn('[OmniCall] Media access error or permission denied:', err);
-      showToast('Could not access camera/mic: ' + err.message);
+      updateCameraState(false);
+      showToast('Camera/Mic permission: ' + (err.message || 'Permission denied'));
     }
   }
 
@@ -346,6 +423,9 @@
     el.callRoomName.textContent = room;
     el.localNameTag.textContent = `${name} (You)`;
     el.localAvatarText.textContent = name.charAt(0).toUpperCase();
+
+    // Ensure camera & avatar state are synchronized
+    updateCameraState(!state.isVideoOff && !!state.localStream && state.localStream.getVideoTracks().length > 0);
 
     // Switch view to in-call screen
     el.lobbyView.classList.add('hidden');
@@ -900,7 +980,9 @@
     let serverBase = (el.settingServerUrl && el.settingServerUrl.value.trim()) || '';
     if (!serverBase || serverBase.includes('localhost') || serverBase.startsWith('file:')) {
       if (state.serverConfig.livekitUrl && state.serverConfig.livekitUrl.includes('129.225.108.83')) {
-        serverBase = 'http://129.225.108.83';
+        serverBase = 'https://129.225.108.83.sslip.io';
+      } else if (/^\d+\.\d+\.\d+\.\d+$/.test(window.location.hostname)) {
+        serverBase = `https://${window.location.hostname}.sslip.io`;
       } else {
         serverBase = window.location.origin;
       }
@@ -1050,6 +1132,19 @@
     el.closeScreenshareModal.addEventListener('click', () => closeModal(el.modalScreenshare));
     el.btnStatsHud.addEventListener('click', () => openModal(el.modalStats));
     el.closeStatsModal.addEventListener('click', () => closeModal(el.modalStats));
+
+    // Chrome Flag Help Modal & Insecure Origin Banner
+    if (el.btnShowChromeFlagHelp) {
+      el.btnShowChromeFlagHelp.addEventListener('click', () => openModal(el.modalChromeFlag));
+    }
+    if (el.closeChromeFlagModal) {
+      el.closeChromeFlagModal.addEventListener('click', () => closeModal(el.modalChromeFlag));
+    }
+    if (el.btnCloseBanner) {
+      el.btnCloseBanner.addEventListener('click', () => {
+        if (el.secureContextBanner) el.secureContextBanner.style.display = 'none';
+      });
+    }
 
     el.saveSettingsBtn.addEventListener('click', async () => {
       closeModal(el.modalSettings);

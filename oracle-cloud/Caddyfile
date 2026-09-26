@@ -1,8 +1,4 @@
-{
-    auto_https off
-}
-
-:80 {
+(omnicall_proxy) {
     # LiveKit WebRTC SFU signaling and WebSocket
     handle /rtc* {
         uri strip_prefix /rtc
@@ -23,4 +19,20 @@
     handle {
         reverse_proxy localhost:3000
     }
+}
+
+# Automatic Let's Encrypt SSL/TLS using sslip.io / nip.io
+129.225.108.83.sslip.io, 129.225.108.83.nip.io {
+    import omnicall_proxy
+}
+
+# Self-signed HTTPS for direct IP access (https://129.225.108.83)
+:443 {
+    tls internal
+    import omnicall_proxy
+}
+
+# Plain HTTP fallback for internal or flag-enabled connections
+:80 {
+    import omnicall_proxy
 }
