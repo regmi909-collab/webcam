@@ -153,19 +153,29 @@
     }
   }
 
+  function getServerTarget() {
+    const saved = localStorage.getItem('omnicall_server_target');
+    if (saved && saved.trim()) return saved.trim().replace(/\/+$/, '');
+    if (window.electronAPI || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return 'http://129.225.108.83';
+    }
+    return window.location.origin;
+  }
+
   // --- Fetch Server Config ---
   async function fetchServerConfig() {
+    const target = getServerTarget();
+    if (el.settingServerUrl) {
+      el.settingServerUrl.value = target;
+    }
     try {
-      const res = await fetch('/api/config');
+      const res = await fetch(`${target}/api/config`);
       if (res.ok) {
         const config = await res.json();
         state.serverConfig = config;
-        if (el.settingServerUrl) {
-          el.settingServerUrl.value = window.location.origin;
-        }
       }
     } catch (e) {
-      console.warn('[OmniCall] Running in standalone or offline mode', e);
+      console.warn('[OmniCall] Server config fetch error:', e);
     }
   }
 
@@ -362,11 +372,24 @@
     el.statEngine.textContent = 'LiveKit Enterprise SFU';
 
     try {
+      const serverTarget = getServerTarget();
+      let livekitWs = 'ws://129.225.108.83:7880';
+      try {
+        const u = new URL(serverTarget);
+        if (u.protocol === 'https:') {
+          livekitWs = `wss://${u.host}/rtc`;
+        } else {
+          livekitWs = `ws://${u.hostname}:7880`;
+        }
+      } catch (e) {
+        livekitWs = state.serverConfig.livekitUrl || 'ws://localhost:7880';
+      }
+
       state.engine = new LiveKitSFUEngine({
         roomName: state.roomName,
         userName: state.userName,
-        apiHost: window.location.origin,
-        livekitUrl: state.serverConfig.livekitUrl
+        apiHost: serverTarget,
+        livekitUrl: livekitWs
       });
 
       // Events
@@ -1032,8 +1055,13 @@
       closeModal(el.modalSettings);
       const camId = el.settingCameraSelect.value;
       const micId = el.settingMicSelect.value;
+      const newTarget = el.settingServerUrl.value.trim().replace(/\/+$/, '');
+      if (newTarget) {
+        localStorage.setItem('omnicall_server_target', newTarget);
+        await fetchServerConfig();
+      }
       await initMediaPreview(camId, micId);
-      showToast('Device settings updated');
+      showToast('Settings saved! Server: ' + (newTarget || 'Default'));
     });
   }
 
