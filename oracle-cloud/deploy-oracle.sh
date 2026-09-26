@@ -17,6 +17,20 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
+# Ensure 2GB swap space on low-RAM instances (prevents out-of-memory freezing)
+TOTAL_SWAP=$(free -m | awk '/^Swap:/ {print $2}')
+if [ "$TOTAL_SWAP" -lt 1000 ]; then
+  echo "[+] Configuring 2GB swap space to guarantee system stability..."
+  fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  if ! grep -q '/swapfile' /etc/fstab; then
+    echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  fi
+  echo "[+] 2GB Swap activated successfully."
+fi
+
 echo "[1/5] Detecting OS and installing dependencies..."
 if [ -f /etc/oracle-release ]; then
   # Oracle Linux
