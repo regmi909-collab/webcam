@@ -23,6 +23,22 @@
         "portable"
       ]
     },
+    "protocols": [
+      {
+        "name": "OmniCall Protocol",
+        "schemes": [
+          "omnicall"
+        ]
+      }
+    ],
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "OmniCall",
+      "runAfterFinish": true
+    },
     "files": [
       "src/**/*",
       "server/**/*",

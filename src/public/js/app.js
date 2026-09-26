@@ -133,7 +133,14 @@
     modalChromeFlag: document.getElementById('modal-chrome-flag'),
     closeChromeFlagModal: document.getElementById('close-chrome-flag-modal'),
     btnModalSwitchHttps: document.getElementById('btn-modal-switch-https'),
-    flagGuideOrigin: document.getElementById('flag-guide-origin')
+    flagGuideOrigin: document.getElementById('flag-guide-origin'),
+
+    // Auto-Join & Windows Startup
+    settingAutoJoinEnable: document.getElementById('setting-auto-join-enable'),
+    settingAutoJoinRoom: document.getElementById('setting-auto-join-room'),
+    autoJoinRoomGroup: document.getElementById('auto-join-room-group'),
+    settingAutoStartWindows: document.getElementById('setting-auto-start-windows'),
+    autoStartWindowsGroup: document.getElementById('auto-start-windows-group')
   };
 
   // --- Initializer ---
@@ -145,7 +152,9 @@
     await fetchServerConfig();
     await initMediaPreview();
     await enumerateDevices();
+    await setupAutoJoinSettings();
     attachEventListeners();
+    await checkAutoJoin();
   }
 
   // --- Electron Desktop Integration ---
@@ -1155,9 +1164,134 @@
         localStorage.setItem('omnicall_server_target', newTarget);
         await fetchServerConfig();
       }
+
+      // Save auto-join preferences
+      if (el.settingAutoJoinEnable) {
+        const isAuto = el.settingAutoJoinEnable.checked;
+        localStorage.setItem('omnicall_auto_join', isAuto ? 'true' : 'false');
+      }
+      if (el.settingAutoJoinRoom) {
+        localStorage.setItem('omnicall_auto_room', el.settingAutoJoinRoom.value.trim().toLowerCase());
+      }
+      if (window.electronAPI && window.electronAPI.setAutoStart && el.settingAutoStartWindows) {
+        try {
+          await window.electronAPI.setAutoStart(el.settingAutoStartWindows.checked);
+        } catch (e) {
+          console.warn('Error setting Windows auto-start:', e);
+        }
+      }
+
       await initMediaPreview(camId, micId);
       showToast('Settings saved! Server: ' + (newTarget || 'Default'));
     });
+  }
+
+  // --- Auto-Join & Persistent Configuration ---
+  async function setupAutoJoinSettings() {
+    const isAutoJoin = localStorage.getItem('omnicall_auto_join') === 'true';
+    const autoRoom = localStorage.getItem('omnicall_auto_room') || '';
+
+    if (el.settingAutoJoinEnable) {
+      el.settingAutoJoinEnable.checked = isAutoJoin;
+      if (el.autoJoinRoomGroup) {
+        el.autoJoinRoomGroup.style.display = isAutoJoin ? 'block' : 'none';
+      }
+      el.settingAutoJoinEnable.addEventListener('change', () => {
+        if (el.autoJoinRoomGroup) {
+          el.autoJoinRoomGroup.style.display = el.settingAutoJoinEnable.checked ? 'block' : 'none';
+        }
+      });
+    }
+
+    if (el.settingAutoJoinRoom) {
+      el.settingAutoJoinRoom.value = autoRoom;
+    }
+
+    // Windows startup checkbox if in Electron
+    if (window.electronAPI && window.electronAPI.getAutoStart && el.autoStartWindowsGroup) {
+      el.autoStartWindowsGroup.style.display = 'block';
+      try {
+        const autoStartEnabled = await window.electronAPI.getAutoStart();
+        if (el.settingAutoStartWindows) {
+          el.settingAutoStartWindows.checked = Boolean(autoStartEnabled);
+        }
+      } catch (e) {
+        console.warn('Error reading auto-start setting:', e);
+      }
+    }
+  }
+
+  async function checkAutoJoin() {
+    // 1. Check URL query parameters (passed from CLI or omnicall:// deep-link)
+    const urlParams = new URLSearchParams(window.location.search);
+    const autojoinUrl = urlParams.get('autojoin') === 'true' || urlParams.get('autojoin') === '1';
+    const roomUrl = urlParams.get('room');
+    const nameUrl = urlParams.get('name');
+
+    if (nameUrl) {
+      el.inputName.value = nameUrl;
+      state.userName = nameUrl;
+    }
+    if (roomUrl) {
+      el.inputRoom.value = roomUrl.toLowerCase().trim();
+      state.roomName = roomUrl.toLowerCase().trim();
+    }
+
+    // 2. Check Launch Args from Electron IPC
+    if (window.electronAPI && window.electronAPI.getLaunchArgs) {
+      try {
+        const args = await window.electronAPI.getLaunchArgs();
+        if (args) {
+          if (args.room && !roomUrl) {
+            el.inputRoom.value = args.room.toLowerCase().trim();
+            state.roomName = args.room.toLowerCase().trim();
+          }
+          if (args.name && !nameUrl) {
+            el.inputName.value = args.name;
+            state.userName = args.name;
+          }
+          if (args.autojoin) {
+            triggerJoinWithMedia();
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('Error reading Electron launch args:', e);
+      }
+    }
+
+    // 3. Check persistent user setting from localStorage
+    const savedAutoJoin = localStorage.getItem('omnicall_auto_join') === 'true';
+    const savedAutoRoom = localStorage.getItem('omnicall_auto_room');
+
+    if (autojoinUrl && el.inputRoom.value.trim()) {
+      triggerJoinWithMedia();
+    } else if (savedAutoJoin && savedAutoRoom) {
+      el.inputRoom.value = savedAutoRoom;
+      triggerJoinWithMedia();
+    }
+
+    // 4. Handle deep link / secondary instance when app is already open
+    if (window.electronAPI && window.electronAPI.onAutoJoinRoom) {
+      window.electronAPI.onAutoJoinRoom((data) => {
+        if (data.name) el.inputName.value = data.name;
+        if (data.room) el.inputRoom.value = data.room;
+        if (data.autojoin || !state.inCall) {
+          triggerJoinWithMedia();
+        }
+      });
+    }
+  }
+
+  function triggerJoinWithMedia() {
+    showToast('Auto-joining conference with camera & microphone active...');
+    setTimeout(async () => {
+      // Ensure media stream is active
+      if (!state.localStream) {
+        await initMediaPreview();
+      }
+      joinMeeting();
+    }, 600);
   }
 
   // Run on page load
