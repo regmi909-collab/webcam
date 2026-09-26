@@ -871,14 +871,54 @@
 
   // --- Utility Functions ---
   function copyMeetingLink() {
-    const room = el.inputRoom.value.trim().toLowerCase();
-    const link = `${window.location.origin}/?room=${encodeURIComponent(room)}`;
+    const room = state.roomName || el.inputRoom.value.trim().toLowerCase();
 
-    navigator.clipboard.writeText(link).then(() => {
-      showToast('Meeting link copied! Send to anyone to join via web or Windows app.');
-    }).catch(() => {
-      showToast('Could not copy to clipboard');
-    });
+    // Determine the publicly accessible server base URL
+    let serverBase = (el.settingServerUrl && el.settingServerUrl.value.trim()) || '';
+    if (!serverBase || serverBase.includes('localhost') || serverBase.startsWith('file:')) {
+      if (state.serverConfig.livekitUrl && state.serverConfig.livekitUrl.includes('129.225.108.83')) {
+        serverBase = 'http://129.225.108.83';
+      } else {
+        serverBase = window.location.origin;
+      }
+    }
+    serverBase = serverBase.replace(/\/+$/, '');
+    const link = `${serverBase}/?room=${encodeURIComponent(room)}`;
+
+    // 1. Electron Native Clipboard API (never blocked by browser security)
+    if (window.electronAPI && window.electronAPI.copyToClipboard) {
+      window.electronAPI.copyToClipboard(link);
+      showToast('Meeting link copied! Send to guest: ' + link);
+      return;
+    }
+
+    // 2. Standard Browser Clipboard API
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(link).then(() => {
+        showToast('Meeting link copied! Send to guest: ' + link);
+      }).catch(() => {
+        fallbackCopyText(link);
+      });
+    } else {
+      fallbackCopyText(link);
+    }
+  }
+
+  function fallbackCopyText(text) {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    try {
+      document.execCommand('copy');
+      showToast('Meeting link copied! Send to guest.');
+    } catch (e) {
+      prompt('Copy this link and send to your guest:', text);
+    }
+    document.body.removeChild(textarea);
   }
 
   function openModal(modal) {

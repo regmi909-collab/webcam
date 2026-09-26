@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, desktopCapturer, session, shell, Menu, Tray, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, desktopCapturer, session, shell, Menu, Tray, nativeImage, clipboard } = require('electron');
 const path = require('path');
 
 let mainWindow = null;
@@ -78,6 +78,14 @@ function createWindow() {
   ipcMain.on('open-external', (event, url) => {
     if (url.startsWith('http://') || url.startsWith('https://')) {
       shell.openExternal(url);
+    }
+  });
+
+  ipcMain.on('copy-to-clipboard', (event, text) => {
+    try {
+      clipboard.writeText(text);
+    } catch (e) {
+      console.error('Clipboard copy error:', e);
     }
   });
 
