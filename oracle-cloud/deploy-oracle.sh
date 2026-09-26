@@ -54,6 +54,7 @@ if command -v firewalld &> /dev/null && systemctl is-active --quiet firewalld; t
 elif command -v ufw &> /dev/null; then
   ufw allow 80/tcp
   ufw allow 443/tcp
+  ufw allow 3000/tcp
   ufw allow 7880/tcp
   ufw allow 7881/tcp
   ufw allow 3478/tcp
@@ -64,6 +65,7 @@ fi
 # Direct iptables rules for Oracle Cloud VCN compatibility
 iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT || true
 iptables -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT || true
+iptables -I INPUT 6 -m state --state NEW -p tcp --dport 3000 -j ACCEPT || true
 iptables -I INPUT 6 -m state --state NEW -p tcp --dport 7880 -j ACCEPT || true
 iptables -I INPUT 6 -m state --state NEW -p tcp --dport 7881 -j ACCEPT || true
 iptables -I INPUT 6 -m state --state NEW -p udp --dport 3478 -j ACCEPT || true
@@ -77,7 +79,14 @@ read -p "Enter your Domain Name (e.g. call.yourdomain.com) or press ENTER to use
 DOMAIN="${USER_DOMAIN:-$PUBLIC_IP}"
 
 export DOMAIN
-echo "Configuring for domain/host: $DOMAIN"
+if [[ "$DOMAIN" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  export LIVEKIT_URL="ws://${DOMAIN}:7880"
+  PROTOCOL="http"
+else
+  export LIVEKIT_URL="wss://${DOMAIN}/rtc"
+  PROTOCOL="https"
+fi
+echo "Configuring for domain/host: $DOMAIN (LiveKit: $LIVEKIT_URL)"
 
 echo "[4/5] Building and starting OmniCall Docker stack..."
 cd "$(dirname "$0")"
@@ -87,8 +96,8 @@ docker compose up -d --build
 echo "=========================================================="
 echo "  [SUCCESS] OmniCall Server is now running!"
 echo "=========================================================="
-echo "  Web Calling Link:      https://$DOMAIN (or http://$DOMAIN:3000)"
-echo "  LiveKit SFU Endpoint:  wss://$DOMAIN/rtc"
+echo "  Web Calling Link:      $PROTOCOL://$DOMAIN (or http://$DOMAIN:3000)"
+echo "  LiveKit SFU Endpoint:  $LIVEKIT_URL"
 echo "  TURN Media Relay:      turn:$DOMAIN:3478"
 echo ""
 echo "  To view logs:"

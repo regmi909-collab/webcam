@@ -23,15 +23,15 @@ services:
       dockerfile: oracle-cloud/Dockerfile.server
     restart: unless-stopped
     environment:
-      - PORT=3000
-      - LIVEKIT_URL=wss://${DOMAIN:-localhost}/rtc
-      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY:-omnicall_api_key_oracle}
-      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET:-omnicall_secret_change_me_12345}
-      - TURN_URL=turn:${DOMAIN:-localhost}:3478
-      - TURN_USERNAME=${TURN_USERNAME:-omnicall}
-      - TURN_CREDENTIAL=${TURN_CREDENTIAL:-turnsecret123}
-    expose:
-      - "3000"
+      PORT: 3000
+      LIVEKIT_URL: ${LIVEKIT_URL:-ws://${DOMAIN:-localhost}:7880}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-omnicall_api_key_oracle}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-omnicall_secret_change_me_12345}
+      TURN_URL: turn:${DOMAIN:-localhost}:3478
+      TURN_USERNAME: ${TURN_USERNAME:-omnicall}
+      TURN_CREDENTIAL: ${TURN_CREDENTIAL:-turnsecret123}
+    ports:
+      - "3000:3000"
 
   # LiveKit Enterprise SFU Media Server
   livekit:
@@ -45,7 +45,7 @@ services:
       - "7881:7881"
       - "50000-50100:50000-50100/udp"
     environment:
-      - LIVEKIT_KEYS=${LIVEKIT_API_KEY:-omnicall_api_key_oracle}: ${LIVEKIT_API_SECRET:-omnicall_secret_change_me_12345}
+      LIVEKIT_KEYS: "${LIVEKIT_API_KEY:-omnicall_api_key_oracle}: ${LIVEKIT_API_SECRET:-omnicall_secret_change_me_12345}"
 
   # Coturn STUN/TURN Media Relay Server (100% NAT/Firewall Bypass)
   coturn:
