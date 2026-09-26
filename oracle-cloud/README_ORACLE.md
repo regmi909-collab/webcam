@@ -57,8 +57,8 @@ Once connected, run:
 
 ```bash
 # 1. Clone or copy your omnicall project
-git clone <your-repo-url> omnicall
-cd omnicall/oracle-cloud
+git clone https://github.com/regmi909-collab/webcam.git
+cd webcam/oracle-cloud
 
 # 2. Run the automated deployment script
 sudo bash deploy-oracle.sh
