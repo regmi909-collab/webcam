@@ -238,9 +238,9 @@
     await checkAutoJoin();
   }
 
-  // --- Theme Management ---
+  // --- Theme Management (Chosen in Settings) ---
   function initTheme() {
-    const savedTheme = localStorage.getItem('vavantar_theme') || 'emerald';
+    const savedTheme = localStorage.getItem('omnicall_theme') || localStorage.getItem('vavantar_theme') || 'emerald';
     applyTheme(savedTheme, false);
   }
 
@@ -248,19 +248,13 @@
     if (!['emerald', 'amber', 'cyber'].includes(themeName)) themeName = 'emerald';
     state.theme = themeName;
     document.body.setAttribute('data-theme', themeName);
-    localStorage.setItem('vavantar_theme', themeName);
+    localStorage.setItem('omnicall_theme', themeName);
 
-    // Update titlebar pills
-    if (el.titlebarThemePills) {
-      el.titlebarThemePills.forEach(pill => {
-        pill.classList.toggle('active', pill.dataset.setTheme === themeName);
-      });
-    }
-
-    // Update lobby showcase cards
-    if (el.themeCards) {
-      el.themeCards.forEach(card => {
-        card.classList.toggle('selected', card.dataset.themeCard === themeName);
+    // Update active button state in Settings modal
+    const themeChoiceBtns = document.querySelectorAll('.theme-choice-btn');
+    if (themeChoiceBtns) {
+      themeChoiceBtns.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.theme === themeName);
       });
     }
 

@@ -152,6 +152,17 @@ h1, h2, h3, h4, .brand-title, .section-heading {
   gap: 10px;
 }
 
+.titlebar-logo {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #0284c7, #3b82f6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+}
+
 .symbol-badge {
   width: 24px;
   height: 24px;
@@ -1777,6 +1788,64 @@ h1, h2, h3, h4, .brand-title, .section-heading {
 
 .custom-select:focus {
   border-color: var(--accent-primary);
+}
+
+/* Settings Modal Visual Theme Picker */
+.theme-picker-group {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.theme-choice-btn {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  padding: 12px 10px;
+  color: var(--text-main);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.theme-choice-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+}
+
+.theme-choice-btn.active {
+  border-color: var(--accent-primary);
+  background: var(--bg-tertiary);
+  box-shadow: 0 0 16px rgba(0, 0, 0, 0.4);
+}
+
+.theme-color-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.theme-color-dot.emerald {
+  background: #c8f08a;
+  box-shadow: 0 0 8px rgba(200, 240, 138, 0.5);
+}
+
+.theme-color-dot.amber {
+  background: #e6bf83;
+  box-shadow: 0 0 8px rgba(230, 191, 131, 0.5);
+}
+
+.theme-color-dot.cyber {
+  background: #81c7dc;
+  box-shadow: 0 0 8px rgba(129, 199, 220, 0.5);
 }
 
 /* ==========================================================================
